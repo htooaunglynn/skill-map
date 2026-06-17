@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { AppFooter } from "@/src/components/AppFooter";
 import { PlannerProvider } from "@/src/context/PlannerContext";
 
 const spaceGrotesk = Space_Grotesk({
@@ -19,6 +20,7 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "SkillMap",
   description: "Local-first learning planner",
+  creator: "Htoo Aung Lynn",
 };
 
 export default function RootLayout({
@@ -34,6 +36,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <PlannerProvider>
           {children}
+          <AppFooter />
         </PlannerProvider>
       </body>
     </html>

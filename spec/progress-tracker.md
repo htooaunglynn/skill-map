@@ -30,6 +30,7 @@ Update this file after every meaningful implementation change.
 - Goals dashboard is now the main `/` dashboard with `FileConnectionStatus` placed below the header and above the shadcn `Input` search. `/goals/dashboard` redirects to `/`. Course and plan UI routes were removed from the app surface while legacy schema/context fields remain for backward compatibility with existing planner JSON files.
 - Goals dashboard header now gates on required device setup, displays `Goals Dashboard - {device name}`, removes the dashboard-wide search input, and adds left-side navigation buttons for Goals, Milestones, Progress Notes, and Sessions.
 - Standalone `/milestones` page added for all-goal milestone management. Dashboard nav links now use semantic styled `Link` elements instead of rendering links through Base UI `Button`, fixing the native button console warning; the Milestones nav points to `/milestones`.
+- Global creator attribution footer added with `Created by Htoo Aung Lynn` and the external portfolio link `https://htooaunglynn.uk`; app metadata now includes the creator.
 
 ## In Progress
 
@@ -64,3 +65,4 @@ Update this file after every meaningful implementation change.
 - Dashboard cleanup completed: the old course-summary root dashboard was replaced by the goals dashboard, planner file connection is available on the main dashboard, course/plan pages and plan UI components were removed, and remaining search fields use the shadcn `Input` component.
 - Dashboard device/header update completed: device setup is owned by the main dashboard gate, the saved device name appears in the dashboard title, dashboard quick navigation moved into the overview header, and the dashboard search input was removed.
 - Milestones page completed: `/milestones` lists milestones with parent goal context and supports add/edit/delete/complete flows. Existing goal-detail milestone dialogs continue using fixed-goal mode, while standalone creation can select a goal.
+- Creator attribution completed: a subtle global footer appears under app pages and links to Htoo Aung Lynn's portfolio.
