@@ -257,18 +257,23 @@ export async function writePlannerFile(
 export async function verifyPermission(
   fileHandle: FileSystemFileHandle,
   mode: FileSystemPermissionMode,
+  options: { requestPermission?: boolean } = { requestPermission: true },
 ): Promise<boolean> {
-  const options: PlannerFileSystemHandlePermissionDescriptor = { mode };
+  const permissionOptions: PlannerFileSystemHandlePermissionDescriptor = { mode };
   const permissionedFileHandle =
     fileHandle as unknown as PermissionedFileSystemFileHandle;
 
   try {
-    if ((await permissionedFileHandle.queryPermission(options)) === "granted") {
+    if ((await permissionedFileHandle.queryPermission(permissionOptions)) === "granted") {
       return true;
     }
 
+    if (options.requestPermission === false) {
+      return false;
+    }
+
     return (
-      (await permissionedFileHandle.requestPermission(options)) === "granted"
+      (await permissionedFileHandle.requestPermission(permissionOptions)) === "granted"
     );
   } catch (error) {
     throw new FileSystemAccessError(

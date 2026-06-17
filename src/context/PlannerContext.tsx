@@ -23,6 +23,7 @@ import type {
 } from "@/src/types/schema";
 import { getOrCreateDeviceIdentity } from "@/src/lib/storage/device";
 import {
+  clearSavedFileHandle,
   clearTemporaryJsonDraft,
   getSavedFileHandle,
   getTemporaryJsonDraft,
@@ -35,6 +36,7 @@ import {
   readPlannerFile,
   verifyPermission,
   writePlannerFile,
+  FileSystemAccessError,
 } from "@/src/lib/storage/fileSystem";
 
 export type PlannerConnectionStatus =
@@ -235,7 +237,26 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const hasPermission = await verifyPermission(savedFileHandle, "readwrite");
+      let hasPermission = false;
+      try {
+        hasPermission = await verifyPermission(savedFileHandle, "readwrite", {
+          requestPermission: false,
+        });
+      } catch (error) {
+        if (error instanceof FileSystemAccessError) {
+          await clearSavedFileHandle();
+          const draft = await getTemporaryJsonDraft();
+          const normalized = draft ? normalizeSkillMapData(draft) : draft;
+          dataRef.current = normalized;
+          setData(normalized);
+          setFileHandle(null);
+          setConnectionStatus(draft ? "fallback_mode" : "no_file");
+          return;
+        }
+
+        throw error;
+      }
+
       if (!hasPermission) {
         setFileHandle(savedFileHandle);
         setConnectionStatus("permission_required");
