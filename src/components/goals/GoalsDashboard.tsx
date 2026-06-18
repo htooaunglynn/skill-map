@@ -140,19 +140,19 @@ export function GoalsDashboard() {
       <div ref={pageRef} className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="flex flex-col gap-4 rounded-xl border p-5 md:flex-row md:items-center md:justify-between" style={sectionStyle}>
           <nav className="grid gap-2 sm:grid-cols-2" aria-label="Dashboard navigation">
-            <Link href="/goals" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
+            <Link href="/app/goals" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
               <Target aria-hidden="true" />
               Goals
             </Link>
-            <Link href="/milestones" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
+            <Link href="/app/milestones" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
               <Flag aria-hidden="true" />
               Milestones
             </Link>
-            <Link href="/progress-notes" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
+            <Link href="/app/progress-notes" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
               <NotebookText aria-hidden="true" />
               Progress Notes
             </Link>
-            <Link href="/sessions" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
+            <Link href="/app/sessions" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>
               <Timer aria-hidden="true" />
               Sessions
             </Link>
@@ -190,7 +190,7 @@ export function GoalsDashboard() {
           <section data-dashboard-section className={sectionCard} style={sectionStyle}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Active Goals</h2>
-              <Link href="/goals" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all goals</Link>
+              <Link href="/app/goals" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all goals</Link>
             </div>
             {activeGoals.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--sm-muted)" }}>No active goals.</p>
@@ -201,7 +201,7 @@ export function GoalsDashboard() {
                   return (
                     <li key={g.id} className="flex flex-col gap-1">
                       <div className="flex items-center justify-between gap-3">
-                        <Link href={`/goals/${g.id}`} className="text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{g.title}</Link>
+                        <Link href={`/app/goals/${g.id}`} className="text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{g.title}</Link>
                         <span className="font-mono text-xs" style={{ color: "var(--sm-muted)" }}>
                           {g.target_date ? new Date(g.target_date).toLocaleDateString() : "-"}
                         </span>
@@ -222,7 +222,7 @@ export function GoalsDashboard() {
           <section data-dashboard-section className={sectionCard} style={sectionStyle}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Upcoming Sessions</h2>
-              <Link href="/sessions" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all sessions</Link>
+              <Link href="/app/sessions" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all sessions</Link>
             </div>
             {upcoming.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--sm-muted)" }}>No upcoming sessions.</p>
@@ -264,7 +264,7 @@ export function GoalsDashboard() {
                       aria-label="Mark milestone complete"
                     />
                     <div className="min-w-0 flex-1">
-                      <Link href={`/goals/${m.goal_id}`} className="truncate text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{m.title}</Link>
+                      <Link href={`/app/goals/${m.goal_id}`} className="truncate text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{m.title}</Link>
                       <p className="font-mono text-xs" style={{ color: "var(--sm-muted)" }}>
                         {goalById.get(m.goal_id)?.title ?? "-"}
                       </p>
@@ -281,7 +281,7 @@ export function GoalsDashboard() {
           <section data-dashboard-section className={sectionCard} style={sectionStyle}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Recent Progress Notes</h2>
-              <Link href="/progress-notes" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all notes</Link>
+              <Link href="/app/progress-notes" className={linkClass} style={{ color: "var(--sm-accent)" }}>View all notes</Link>
             </div>
             {recentNotes.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--sm-muted)" }}>No notes yet.</p>
@@ -289,7 +289,7 @@ export function GoalsDashboard() {
               <ul className="flex flex-col gap-2">
                 {recentNotes.map((n) => (
                   <li key={n.id} className="border-b pb-2 last:border-b-0" style={{ borderColor: "var(--sm-border)" }}>
-                    <Link href={`/progress-notes/${n.id}`} className="text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{n.title}</Link>
+                    <Link href={`/app/progress-notes/${n.id}`} className="text-sm font-medium hover:opacity-80" style={{ color: "var(--sm-text)" }}>{n.title}</Link>
                     <p className="font-mono text-xs" style={{ color: "var(--sm-muted)" }}>
                       {goalById.get(n.goal_id)?.title ?? "-"} · {new Date(n.created_at).toLocaleDateString()}
                     </p>

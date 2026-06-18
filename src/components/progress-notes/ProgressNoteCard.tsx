@@ -54,7 +54,7 @@ export function ProgressNoteCard({
       style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface)" }}
     >
       <div className="flex items-start justify-between gap-3">
-        <Link href={`/progress-notes/${note.id}`} className="min-w-0 flex-1 transition-opacity hover:opacity-80">
+        <Link href={`/app/progress-notes/${note.id}`} className="min-w-0 flex-1 transition-opacity hover:opacity-80">
           <p className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--sm-faint)" }}>
             {entityLabel ?? "N-01"}
           </p>

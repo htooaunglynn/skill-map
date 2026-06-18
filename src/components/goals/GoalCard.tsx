@@ -103,7 +103,7 @@ export function GoalCard({
           ) : null}
         </div>
         <Link
-          href={`/goals/${goal.id}`}
+          href={`/app/goals/${goal.id}`}
           className="rounded px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider transition-colors hover:opacity-80"
           style={{ color: "var(--sm-accent)", borderColor: "var(--sm-accent)", border: "1px solid" }}
         >
