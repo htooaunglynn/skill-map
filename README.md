@@ -1,90 +1,48 @@
 # SkillMap
 
-SkillMap is a local-first learning planner for organizing courses, modules, topics, Markdown notes, bookmarks, and progress in a single user-owned JSON file.
+> A local-first learning planner for self-directed learners — goals, milestones, practice sessions, and progress notes, stored in a single JSON file you fully own.
 
-The app is built with Next.js 16, React 19, TypeScript, Tailwind CSS, and shadcn/ui using the Base Sera preset. It has no backend, database, authentication, or cloud API in the MVP.
+**Live app:** [skill-map.htooaunglynn.uk](https://skill-map.htooaunglynn.uk)
+**Author:** [Htoo Aung Lynn](https://htooaunglynn.uk)
 
-## Project Flow
+## Why SkillMap
 
-Read the project documents in this order before making product, architecture, or implementation decisions:
+Most learning trackers lock your data behind an account, or scatter it across notes apps and spreadsheets. SkillMap keeps everything — active goals, milestones, practice sessions, and progress notes — in one focused dashboard, backed by a single `skillmap.json` file that lives on your device, an external drive, or a synced folder of your choice.
 
-1. `spec/BRD.md` - full business requirements and MVP scope.
-2. `spec/project-overview.md` - product goals, core flow, scope, and success criteria.
-3. `spec/architecture.md` - system boundaries, storage model, and invariants.
-4. `spec/ui-context.md` - visual language, layout rules, and component conventions.
-5. `spec/code-standards.md` - TypeScript, Next.js, styling, and file organization rules.
-6. `spec/ai-workflow-rules.md` - agent workflow, scoping, protected files, and doc sync rules.
-7. `spec/progress-tracker.md` - current phase, completed work, next steps, and open questions.
+No accounts. No tracking. No cloud database. Your data stays yours.
 
-Root `AGENTS.md` and `CLAUDE.md` contain the same agent entry flow for coding assistants.
+## Features
 
-## Current Setup
+- **Goals dashboard** — see active goals, milestones, sessions, and progress notes at a glance, with per-item progress bars.
+- **Local JSON storage** — all data lives in a single user-owned `skillmap.json` file, not a server.
+- **File System Access API** — open and save your file directly from the browser; the file handle is remembered in IndexedDB so you don't have to re-select it every visit.
+- **JSON import/export fallback** — works in browsers without File System Access support.
+- **Client-side progress tracking** — mark milestones complete and see progress recalculated instantly, with no server round-trip.
+- **Privacy by design** — no backend, no authentication, no analytics.
 
-Already completed:
+## Tech Stack
 
-```bash
-pnpm create next-app@latest . --yes
-pnpm dlx shadcn@latest init
-```
+- Next.js 16 (App Router) + React 19 + TypeScript
+- Tailwind CSS + shadcn/ui (Base, Sera preset)
+- IndexedDB + File System Access API for local file persistence
+- Deployed on Vercel
 
-shadcn/ui selections:
+## How Your Data Is Stored
 
-- Component library: Base
-- Preset: Sera
+SkillMap has no backend, database, or cloud API. All data is read from and written to a single `skillmap.json` file:
 
-Installed UI components:
+- On browsers that support the File System Access API, SkillMap opens and saves the file directly, and remembers the file handle in IndexedDB so you don't have to reconnect it each session.
+- On unsupported browsers, SkillMap falls back to manual JSON import/export.
 
-- `card`
-- `separator`
-- `button`
-- `checkbox`
-- `input`
-- `label`
-- `textarea`
-- `dropdown-menu`
-- `dialog`
-- `progress`
+You choose where the file lives — locally, on an external drive, or in a synced folder (Dropbox, iCloud, etc.) — and SkillMap never sends it anywhere else.
 
-## Development
+## Scope
 
-Install dependencies:
-
-```bash
-pnpm install
-```
-
-Run the development server:
-
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-Run checks:
-
-```bash
-pnpm lint
-pnpm build
-```
-
-## MVP Direction
-
-The MVP should focus on:
-
-- Creating or opening a local `skillmap.json` file.
-- Reading, validating, and saving the flattened JSON data model.
-- Storing file handles in IndexedDB when the browser supports the File System Access API.
-- Providing fallback JSON import/export for unsupported browsers.
-- Managing courses, modules, topics, Markdown notes, and bookmarks.
-- Marking topics complete and calculating progress client-side.
-- Showing browser compatibility, file connection, autosave, and save status clearly.
-
-Do not add a backend, database, OAuth, Google Drive API, account system, real-time sync, or server storage for the MVP.
+The current release intentionally has no backend, database, authentication, OAuth, Google Drive API, account system, real-time sync, or server-side storage — everything runs client-side against your local file.
 
 ## Community
 
 - Read `CONTRIBUTING.md` before opening a pull request.
 - Follow `CODE_OF_CONDUCT.md` in project spaces.
-- Report security vulnerabilities privately using `SECURITY.md`.
-- This project is licensed under the MIT License. See `LICENSE`.
+- Report security vulnerabilities privately via `SECURITY.md`.
+- Licensed under the MIT License — see `LICENSE`.
