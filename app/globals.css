@@ -135,6 +135,10 @@
     body {
         @apply bg-background text-foreground;
         font-family: var(--font-sans), sans-serif;
+        background:
+            radial-gradient(circle at 12% 28%, rgb(79 168 154 / 0.16) 0, transparent 24rem),
+            radial-gradient(circle at 88% 78%, rgb(189 123 130 / 0.15) 0, transparent 28rem),
+            linear-gradient(135deg, #071016 0%, var(--sm-bg) 48%, #090d18 100%);
     }
 
     html {
@@ -144,6 +148,88 @@
     /* mono for numbers, badges, timestamps */
     .font-mono {
         font-family: var(--font-mono), monospace;
+    }
+}
+
+@layer utilities {
+    .skillmap-motion-card {
+        transition:
+            border-color 180ms ease,
+            background-color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease;
+        will-change: transform;
+    }
+
+    .skillmap-background {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 13% 32%, rgb(79 168 154 / 0.26) 0, transparent 24rem),
+            radial-gradient(circle at 87% 78%, rgb(189 123 130 / 0.24) 0, transparent 28rem),
+            radial-gradient(circle at 72% 12%, rgb(76 143 217 / 0.14) 0, transparent 24rem),
+            radial-gradient(circle at 97% 92%, rgb(201 138 79 / 0.16) 0, transparent 22rem),
+            linear-gradient(135deg, #071016 0%, var(--sm-bg) 43%, #090d18 100%);
+    }
+
+    .skillmap-background::before,
+    .skillmap-background::after {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        content: "";
+        pointer-events: none;
+    }
+
+    .skillmap-background::before {
+        opacity: 0.34;
+        background-image: radial-gradient(circle, rgb(130 143 157 / 0.42) 1px, transparent 1px);
+        background-position: 0 0;
+        background-size: 22px 22px;
+        mask-image: radial-gradient(ellipse at left 35%, black 0, transparent 35rem), radial-gradient(ellipse at right top, black 0, transparent 30rem);
+    }
+
+    .skillmap-background::after {
+        opacity: 0.5;
+        background:
+            linear-gradient(110deg, transparent 0 62%, rgb(76 143 217 / 0.12) 62.2%, transparent 62.5%),
+            repeating-radial-gradient(ellipse at 76% 103%, rgb(79 168 154 / 0.28) 0 1px, transparent 1px 13px);
+        mask-image: radial-gradient(ellipse at 79% 100%, black 0, transparent 34rem);
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    a[href],
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    summary {
+        transition-property: transform, opacity, background-color, border-color, color, box-shadow;
+        transition-duration: 180ms;
+        transition-timing-function: ease;
+    }
+
+    a[href]:hover,
+    button:not(:disabled):hover,
+    [role="button"]:not([aria-disabled="true"]):hover,
+    summary:hover {
+        transform: translateY(-1px);
+    }
+
+    .skillmap-motion-card:hover {
+        box-shadow: 0 18px 46px rgb(0 0 0 / 0.24), 0 0 0 1px rgb(79 168 154 / 0.12);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    a[href],
+    button,
+    [role="button"],
+    summary,
+    .skillmap-motion-card {
+        transition-duration: 1ms !important;
+        transform: none !important;
+        scroll-behavior: auto !important;
     }
 }
 

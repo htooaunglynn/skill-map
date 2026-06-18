@@ -50,7 +50,7 @@ export function ProgressNoteCard({
     <div
       ref={cardRef}
       data-animate-item
-      className="flex h-full flex-col gap-3 rounded-xl border p-5 transition-colors hover:border-[var(--sm-rose)] hover:bg-[var(--sm-surface2)]"
+      className="skillmap-motion-card flex h-full flex-col gap-3 rounded-xl border p-5 transition-colors hover:border-[var(--sm-rose)] hover:bg-[var(--sm-surface2)]"
       style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface)" }}
     >
       <div className="flex items-start justify-between gap-3">

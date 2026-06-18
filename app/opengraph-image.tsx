@@ -24,6 +24,17 @@ export default function OpenGraphImage() {
       >
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "52%" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <svg width="52" height="52" viewBox="0 0 48 48" fill="none">
+                <path d="M6 14.5L17.8 9.2L29.6 14.5L42 9V33.5L29.6 39L17.8 33.7L6 39V14.5Z" stroke="#4fa89a" strokeWidth="2.7" strokeLinejoin="round" />
+                <path d="M17.8 9.2V33.7M29.6 14.5V39" stroke="#4fa89a" strokeWidth="2.7" strokeLinecap="round" />
+                <path d="M30 6.5C25.9 6.5 22.6 9.8 22.6 13.8C22.6 19.6 30 26.6 30 26.6C30 26.6 37.4 19.6 37.4 13.8C37.4 9.8 34.1 6.5 30 6.5Z" fill="#11161d" stroke="#4fa89a" strokeWidth="2.7" strokeLinejoin="round" />
+                <circle cx="30" cy="13.8" r="2.6" stroke="#4fa89a" strokeWidth="2.3" />
+              </svg>
+              <div style={{ color: "#ece6d9", fontSize: 30, fontWeight: 800, letterSpacing: 5, textTransform: "uppercase" }}>
+                {SITE_NAME}
+              </div>
+            </div>
             <div style={{ color: "#4fa89a", fontSize: 24, letterSpacing: 4, textTransform: "uppercase" }}>
               {SITE_TAGLINE}
             </div>

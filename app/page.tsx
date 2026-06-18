@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, FileJson, HardDrive, LockKeyhole, Target } from "lucide-react";
+import { BrandHeader } from "@/src/components/brand/SkillMapBrand";
+import { AnimatedArticle, AnimatedPrivacyStatement, AnimatedSurface } from "@/src/components/motion/InteractiveMotion";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/src/lib/site";
 
 export const metadata: Metadata = {
@@ -46,8 +48,9 @@ const previewGoals = [
 
 export default function LandingPage() {
   return (
-    <main style={{ backgroundColor: "var(--sm-bg)", color: "var(--sm-text)" }}>
-      <section className="px-4 py-10 sm:px-6 lg:px-8">
+    <main className="skillmap-background" style={{ color: "var(--sm-text)" }}>
+      <section className="px-4 py-8 sm:px-6 lg:px-8">
+        <BrandHeader href="/" className="mx-auto w-full max-w-6xl" />
         <div className="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="flex flex-col gap-6">
             <div className="border-l-[3px] pl-4" style={{ borderColor: "var(--sm-accent)" }}>
@@ -83,9 +86,9 @@ export default function LandingPage() {
 
             <dl className="grid max-w-2xl gap-3 sm:grid-cols-3">
               {previewGoals.map((item) => (
-                <div
+                <AnimatedSurface
                   key={item.label}
-                  className="rounded-xl border border-t-[3px] p-4"
+                  className="skillmap-motion-card rounded-xl border border-t-[3px] p-4"
                   style={{
                     backgroundColor: "var(--sm-surface)",
                     borderColor: "var(--sm-border)",
@@ -96,13 +99,16 @@ export default function LandingPage() {
                     {item.label}
                   </dt>
                   <dd className="mt-2 font-mono text-3xl font-bold">{item.value}</dd>
-                </div>
+                </AnimatedSurface>
               ))}
             </dl>
+
+            <AnimatedPrivacyStatement />
           </div>
 
-          <div
-            className="rounded-xl border p-4 shadow-2xl"
+          <AnimatedSurface
+            intensity="strong"
+            className="skillmap-motion-card rounded-xl border p-4 shadow-2xl"
             style={{ backgroundColor: "var(--sm-surface)", borderColor: "var(--sm-border)" }}
             aria-label="SkillMap planner preview"
           >
@@ -124,7 +130,11 @@ export default function LandingPage() {
                 ["Sessions", "90 min practice", "var(--sm-accent)"],
                 ["Progress Notes", "Hooks finally clicked", "var(--sm-rose)"],
               ].map(([lane, title, color], index) => (
-                <article key={lane} className="min-h-40 rounded-lg border p-4" style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface2)" }}>
+                <AnimatedArticle
+                  key={lane}
+                  className="skillmap-motion-card min-h-40 rounded-lg border p-4"
+                  style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface2)" }}
+                >
                   <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color }}>
                     {lane}
                   </p>
@@ -135,7 +145,7 @@ export default function LandingPage() {
                   <div className="mt-5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--sm-border)" }}>
                     <div className="h-full rounded-full" style={{ width: `${68 - index * 14}%`, backgroundColor: color }} />
                   </div>
-                </article>
+                </AnimatedArticle>
               ))}
             </div>
 
@@ -147,16 +157,16 @@ export default function LandingPage() {
                 skillmap.json stays on your device, external drive, or synced folder.
               </p>
             </div>
-          </div>
+          </AnimatedSurface>
         </div>
       </section>
 
       <section id="features" className="px-4 pb-16 sm:px-6 lg:px-8">
         <div className="mx-auto grid w-full max-w-6xl gap-4 md:grid-cols-2">
           {features.map((feature) => (
-            <article
+            <AnimatedArticle
               key={feature.title}
-              className="rounded-xl border p-5"
+              className="skillmap-motion-card rounded-xl border p-5"
               style={{ backgroundColor: "var(--sm-surface)", borderColor: "var(--sm-border)" }}
             >
               <feature.icon className="size-5" style={{ color: "var(--sm-accent)" }} aria-hidden="true" />
@@ -164,7 +174,7 @@ export default function LandingPage() {
               <p className="mt-2 text-sm leading-6" style={{ color: "var(--sm-muted)" }}>
                 {feature.description}
               </p>
-            </article>
+            </AnimatedArticle>
           ))}
         </div>
       </section>

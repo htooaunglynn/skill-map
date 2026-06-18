@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { DeviceSetupModal } from "@/src/components/DeviceSetupModal";
 import { FileConnectionStatus } from "@/src/components/FileConnectionStatus";
+import { BrandHeader } from "@/src/components/brand/SkillMapBrand";
 import { AnimatedProgress } from "@/src/components/ui/AnimatedProgress";
 import { usePlanner } from "@/src/context/PlannerContext";
 import { usePageAnimation } from "@/src/hooks/usePageAnimation";
@@ -128,16 +129,23 @@ export function GoalsDashboard() {
 
   if (!hasCheckedDevice || !deviceName) {
     return (
-      <DeviceSetupModal
-        required
-        onComplete={(nextDeviceName) => setDeviceName(nextDeviceName)}
-      />
+      <main className="skillmap-background min-h-screen px-4 py-6 sm:px-6 lg:px-8" style={{ color: "var(--sm-text)" }}>
+        <div className="mx-auto w-full max-w-6xl">
+          <BrandHeader compact />
+        </div>
+        <DeviceSetupModal
+          required
+          onComplete={(nextDeviceName) => setDeviceName(nextDeviceName)}
+        />
+      </main>
     );
   }
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8" style={{ backgroundColor: "var(--sm-bg)", color: "var(--sm-text)" }}>
+    <main className="skillmap-background min-h-screen px-4 py-6 sm:px-6 lg:px-8" style={{ color: "var(--sm-text)" }}>
       <div ref={pageRef} className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <BrandHeader compact />
+
         <section className="flex flex-col gap-4 rounded-xl border p-5 md:flex-row md:items-center md:justify-between" style={sectionStyle}>
           <nav className="grid gap-2 sm:grid-cols-2" aria-label="Dashboard navigation">
             <Link href="/app/goals" className={navLinkClass} style={{ borderColor: "var(--sm-border)", color: "var(--sm-text)" }}>

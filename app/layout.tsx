@@ -36,6 +36,10 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   creator: "Htoo Aung Lynn",
   authors: [{ name: "Htoo Aung Lynn", url: "https://htooaunglynn.uk" }],
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+  },
   alternates: {
     canonical: "/",
   },

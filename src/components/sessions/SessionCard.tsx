@@ -73,7 +73,7 @@ export function SessionCard({
     <div
       ref={cardRef}
       data-animate-item
-      className="flex h-full flex-col gap-3 rounded-xl border p-5 transition-colors hover:border-[var(--sm-accent)] hover:bg-[var(--sm-surface2)]"
+      className="skillmap-motion-card flex h-full flex-col gap-3 rounded-xl border p-5 transition-colors hover:border-[var(--sm-accent)] hover:bg-[var(--sm-surface2)]"
       style={{
         borderColor: session.status === "missed" ? "var(--sm-red)" : "var(--sm-border)",
         backgroundColor: completed ? "color-mix(in srgb, var(--sm-accent) 12%, var(--sm-surface))" : "var(--sm-surface)",

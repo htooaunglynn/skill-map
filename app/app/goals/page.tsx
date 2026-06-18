@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BrandHeader } from "@/src/components/brand/SkillMapBrand";
 import { GoalCard } from "@/src/components/goals/GoalCard";
 import { GoalFormDialog } from "@/src/components/goals/GoalFormDialog";
 import { usePlanner } from "@/src/context/PlannerContext";
@@ -39,8 +40,10 @@ export default function GoalsPage() {
   function openEdit(goal: Goal) { setEditingGoal(goal); setIsFormOpen(true); }
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8" style={{ backgroundColor: "var(--sm-bg)", color: "var(--sm-text)" }}>
+    <main className="skillmap-background min-h-screen px-4 py-6 sm:px-6 lg:px-8" style={{ color: "var(--sm-text)" }}>
       <div ref={pageRef} className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <BrandHeader compact />
+
         <Link
           href="/app"
           className="inline-flex h-9 w-fit items-center gap-1.5 px-3 font-mono text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-70"

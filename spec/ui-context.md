@@ -56,6 +56,22 @@ Keep headings sized for dashboard content. Reserve large display type for rare p
 | Cards and panels | `border-radius: 10px–12px` or `rounded-xl` |
 | Pills / badges | `border-radius: 99px` or `rounded-full` |
 
+## Brand Assets
+
+Use the scalable SkillMap brand components for product identity:
+
+- `SkillMapMark` is the icon-only map/pin mark. Use it for favicon/app icon and compact brand contexts.
+- `SkillMapLogo` combines the teal map/pin mark with the uppercase `SKILLMAP` wordmark. Use it in page headers.
+- `BrandHeader` places the logo consistently at the top of the public landing page and planner pages.
+- `PrivacyShieldIcon` is the shield/check icon used beside the landing privacy promise.
+
+Brand placement rules:
+
+- Show the full logo plus wordmark in page headers only.
+- Do not add the full logo to the footer unless the product spec changes; the footer should remain quiet creator attribution.
+- Use the icon-only mark for favicon and tiny icon contexts because the wordmark is unreadable at small sizes.
+- Keep brand colors aligned to `var(--sm-accent)` for the mark and `var(--sm-text)` for the wordmark.
+
 ## CSS Variable Setup
 
 Already defined in `:root` inside `app/globals.css`:
@@ -78,6 +94,36 @@ Already defined in `:root` inside `app/globals.css`:
 --mono: 'Space Mono', monospace;
 --sans: 'Space Grotesk', sans-serif;
 ```
+
+## Global CSS Usage
+
+`app/globals.css` is the source of truth for global styling. It imports Tailwind CSS, `tw-animate-css`, and shadcn's Tailwind layer, then maps shadcn tokens and SkillMap semantic tokens through `@theme inline`.
+
+Global base styles:
+
+- `*` applies the shared border token and focus outline token with `border-border` and `outline-ring/50`.
+- `body` applies the app foreground/background tokens, uses `var(--font-sans)`, and renders the dark SkillMap radial/linear background so uncovered page space still matches the product shell.
+- `html` uses the configured sans font.
+- `.font-mono` maps to `var(--font-mono)` for numbers, badges, timestamps, entity IDs, and technical labels.
+- WebKit scrollbars use the dark page background, border-colored thumb, and muted hover thumb.
+
+Global utility styles:
+
+- `.skillmap-background` is the full-page atmospheric background utility used by the public landing page and planner app shells. It combines teal, blue, rose, and amber radial glows over the dark base.
+- `.skillmap-background::before` adds the subtle dotted texture. `.skillmap-background::after` adds the faint line/ring texture. Both layers are non-interactive and sit behind content.
+- `.skillmap-motion-card` is the shared hover surface utility for landing preview cards, feature cards, and planner item cards. It transitions border, background, shadow, and transform.
+
+Global interaction styles:
+
+- Clickable elements (`a[href]`, enabled `button`, enabled `[role="button"]`, and `summary`) receive a subtle hover lift on fine pointer devices.
+- Reduced-motion users get near-instant transitions and no transform movement through the `prefers-reduced-motion: reduce` media query.
+- Keep hover effects restrained: clickable controls should feel responsive without moving layout, changing meaning, or hiding text.
+
+Animation packages:
+
+- `gsap` remains the existing planner animation package for dashboard/page entrances, list entrances, card removal, status changes, and animated progress.
+- `motion` is used for React interaction polish, especially the landing-page privacy statement and hover/tap behavior for animated surfaces.
+- Prefer small Client Components for Motion so public landing content stays server-rendered and crawlable.
 
 ## Component Library
 

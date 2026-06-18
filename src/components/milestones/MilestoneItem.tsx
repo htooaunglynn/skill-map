@@ -85,7 +85,7 @@ export function MilestoneItem({
     <div
       ref={rowRef}
       data-animate-item
-      className="flex h-full flex-col gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-[var(--sm-accent2)] hover:bg-[var(--sm-surface2)]"
+      className="skillmap-motion-card flex h-full flex-col gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-[var(--sm-accent2)] hover:bg-[var(--sm-surface2)]"
       style={{
         borderColor: overdue ? "var(--sm-red)" : "var(--sm-border)",
         backgroundColor: completed ? "color-mix(in srgb, var(--sm-accent2) 12%, var(--sm-surface))" : "var(--sm-surface)",

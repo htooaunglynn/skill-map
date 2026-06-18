@@ -50,7 +50,7 @@ export function GoalCard({
     <div
       ref={cardRef}
       data-animate-item
-      className="flex flex-col gap-4 rounded-xl border p-5"
+      className="skillmap-motion-card flex flex-col gap-4 rounded-xl border p-5"
       style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface)" }}
     >
       <div className="flex items-start justify-between gap-3">
