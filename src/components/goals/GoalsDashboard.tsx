@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Flag, NotebookText, Target, Timer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { DeviceSetupModal } from "@/src/components/DeviceSetupModal";
 import { FileConnectionStatus } from "@/src/components/FileConnectionStatus";
 import { AnimatedProgress } from "@/src/components/ui/AnimatedProgress";
 import { usePlanner } from "@/src/context/PlannerContext";
 import { usePageAnimation } from "@/src/hooks/usePageAnimation";
-import { useProgressAnimation } from "@/src/hooks/useProgressAnimation";
 import { animateDashboardSections } from "@/src/lib/animations";
 import { getDeviceName } from "@/src/lib/storage/device";
 import {
@@ -30,16 +31,32 @@ function daysOverdue(due: string): number {
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
 
-function Counter({ label, value, total }: Readonly<{ label: string; value: number; total?: number }>) {
-  const display = useProgressAnimation(value);
+function getWeekBounds(): { start: number; end: number } {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = (day + 6) % 7;
+  const start = new Date(now);
+  start.setDate(now.getDate() - diffToMonday);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return { start: start.getTime(), end: end.getTime() };
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+  progress,
+}: Readonly<{ label: string; value: number | string; accent: string; progress?: number }>) {
   return (
-    <div className="rounded-xl border p-5" style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface)" }}>
-      <p className="font-mono text-xs uppercase tracking-wider" style={{ color: "var(--sm-muted)" }}>{label}</p>
-      <p className="mt-2 text-3xl font-bold" style={{ color: "var(--sm-text)" }}>
-        {display}
-        {total !== undefined ? <span className="text-lg" style={{ color: "var(--sm-muted)" }}> / {total}</span> : null}
-      </p>
-    </div>
+    <Card className="gap-4 border-t-[3px] py-5" style={{ borderTopColor: accent, backgroundColor: "var(--sm-surface)" }}>
+      <CardContent className="flex flex-col gap-3">
+        <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--sm-muted)" }}>{label}</p>
+        <p className="font-mono text-3xl font-bold" style={{ color: "var(--sm-text)" }}>{value}</p>
+        {progress !== undefined ? <Progress value={progress} className="w-full" /> : <div className="h-0.5 w-full rounded-full" style={{ backgroundColor: "var(--sm-border)" }} />}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -93,13 +110,15 @@ export function GoalsDashboard() {
     [notes],
   );
 
-  const completedGoals = goals.filter((g) => g.status === "completed").length;
   const completedMilestones = milestones.filter((m) => m.status === "completed").length;
   const completedSessions = sessions.filter((s) => s.status === "completed").length;
-  const practiceHours = Math.round(
-    (sessions.filter((s) => s.status === "completed").reduce((sum, s) => sum + s.duration_minutes, 0) / 60) * 10,
-  ) / 10;
   const missedCount = getMissedSessions(sessions).length;
+  const { start: weekStart, end: weekEnd } = useMemo(() => getWeekBounds(), []);
+  const milestonesThisWeek = milestones.filter((m) => {
+    if (!m.due_date) return false;
+    const due = new Date(m.due_date).getTime();
+    return due >= weekStart && due < weekEnd;
+  }).length;
 
   useEffect(() => {
     if (!sectionsRef.current) return;
@@ -147,6 +166,27 @@ export function GoalsDashboard() {
         <FileConnectionStatus />
 
         <div ref={sectionsRef} className="flex flex-col gap-6">
+          <section data-dashboard-section className="grid gap-4 md:grid-cols-3" aria-label="Overview stats">
+            <StatCard
+              label="Active Goals"
+              value={activeGoals.length}
+              accent="var(--sm-accent)"
+              progress={goals.length ? (activeGoals.length / goals.length) * 100 : 0}
+            />
+            <StatCard
+              label="Milestones This Week"
+              value={milestonesThisWeek}
+              accent="var(--sm-accent2)"
+              progress={milestones.length ? (completedMilestones / milestones.length) * 100 : 0}
+            />
+            <StatCard
+              label="Sessions Logged"
+              value={completedSessions}
+              accent="var(--sm-rose)"
+              progress={sessions.length ? (completedSessions / sessions.length) * 100 : 0}
+            />
+          </section>
+
           <section data-dashboard-section className={sectionCard} style={sectionStyle}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Active Goals</h2>
@@ -263,13 +303,6 @@ export function GoalsDashboard() {
           </section>
 
           <section data-dashboard-section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold">Completion Summary</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Counter label="Goals completed" value={completedGoals} total={goals.length} />
-              <Counter label="Milestones completed" value={completedMilestones} total={milestones.length} />
-              <Counter label="Sessions completed" value={completedSessions} total={sessions.length} />
-              <Counter label="Practice hours" value={practiceHours} />
-            </div>
             {missedCount > 0 ? (
               <p className="font-mono text-xs" style={{ color: "var(--sm-red)" }}>{missedCount} session(s) missed and need rescheduling.</p>
             ) : null}

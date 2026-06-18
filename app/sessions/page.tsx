@@ -147,10 +147,11 @@ export default function SessionsPage() {
           </div>
         ) : (
           <section ref={listRef} className="grid gap-4 md:grid-cols-2" aria-label="Sessions">
-            {sessions.map((session) => (
+            {sessions.map((session, index) => (
               <SessionCard
                 key={session.id}
                 session={session}
+                entityLabel={`S-${String(index + 1).padStart(2, "0")}`}
                 goal={goalById.get(session.goal_id)}
                 milestone={session.milestone_id ? milestoneById.get(session.milestone_id) : undefined}
                 onEdit={() => openEdit(session)}

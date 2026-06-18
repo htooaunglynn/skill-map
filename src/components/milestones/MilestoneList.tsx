@@ -64,11 +64,12 @@ export function MilestoneList({ goalId }: Readonly<{ goalId: string }>) {
           No milestones yet. Break this goal into ordered checkpoints.
         </div>
       ) : (
-        <div ref={listRef} className="flex flex-col gap-2">
+        <div ref={listRef} className="grid gap-4 md:grid-cols-3">
           {milestones.map((milestone, index) => (
             <MilestoneItem
               key={milestone.id}
               milestone={milestone}
+              entityLabel={`M-${String(index + 1).padStart(2, "0")}`}
               onEdit={() => openEdit(milestone)}
               onMoveUp={() => move(index, -1)}
               onMoveDown={() => move(index, 1)}

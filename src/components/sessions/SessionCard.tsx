@@ -19,11 +19,11 @@ const SESSION_STATUSES: SessionStatus[] = [
   "missed",
 ];
 
-const STATUS_STYLES: Record<SessionStatus, string> = {
-  scheduled: "border-[var(--sm-accent)] text-[var(--sm-accent)]",
-  completed: "border-[var(--sm-green)] text-[var(--sm-green)]",
-  cancelled: "border-[var(--sm-muted)] text-[var(--sm-muted)]",
-  missed: "border-[var(--sm-red)] text-[var(--sm-red)]",
+const STATUS_DOT: Record<SessionStatus, string> = {
+  scheduled: "var(--sm-faint)",
+  completed: "var(--sm-green)",
+  cancelled: "color-mix(in srgb, var(--sm-faint) 45%, transparent)",
+  missed: "var(--sm-red)",
 };
 
 const chipClass =
@@ -36,6 +36,7 @@ export function SessionCard({
   onEdit,
   onDelete,
   onStatusChange,
+  entityLabel,
 }: Readonly<{
   session: PracticeSession;
   goal?: Goal;
@@ -43,6 +44,7 @@ export function SessionCard({
   onEdit: () => void;
   onDelete: () => Promise<void>;
   onStatusChange: (status: SessionStatus) => void;
+  entityLabel?: string;
 }>) {
   const cardRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLSpanElement>(null);
@@ -65,22 +67,24 @@ export function SessionCard({
   }
 
   const scheduled = new Date(session.scheduled_at);
+  const completed = session.status === "completed";
 
   return (
     <div
       ref={cardRef}
       data-animate-item
-      className="flex flex-col gap-3 rounded-xl border p-5"
-      style={{ borderColor: "var(--sm-border)", backgroundColor: "var(--sm-surface)" }}
+      className="flex h-full flex-col gap-3 rounded-xl border p-5 transition-colors hover:border-[var(--sm-accent)] hover:bg-[var(--sm-surface2)]"
+      style={{
+        borderColor: session.status === "missed" ? "var(--sm-red)" : "var(--sm-border)",
+        backgroundColor: completed ? "color-mix(in srgb, var(--sm-accent) 12%, var(--sm-surface))" : "var(--sm-surface)",
+        opacity: session.status === "cancelled" ? 0.72 : 1,
+      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <span
-            ref={badgeRef}
-            className={`mb-2 inline-block rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${STATUS_STYLES[session.status]}`}
-          >
-            {session.status}
-          </span>
+          <p className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--sm-faint)" }}>
+            {entityLabel ?? "S-01"}
+          </p>
           <h3 className="truncate text-base font-semibold" style={{ color: "var(--sm-text)" }}>
             {session.title}
           </h3>
@@ -125,23 +129,22 @@ export function SessionCard({
         <span>{session.duration_minutes} min</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <label className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--sm-muted)" }}>
-          Status
-        </label>
-        <select
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-          value={session.status}
-          onChange={(e) => onStatusChange(e.target.value as SessionStatus)}
-          aria-label="Update session status"
-        >
-          {SESSION_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button" variant="ghost" className="h-8 w-fit gap-2 px-2" />}>
+          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: STATUS_DOT[session.status] }} />
+          <span ref={badgeRef} className="font-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--sm-muted)" }}>
+            {session.status}
+          </span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {SESSION_STATUSES.map((status) => (
+            <DropdownMenuItem key={status} onClick={() => onStatusChange(status)}>
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: STATUS_DOT[status] }} />
+              {status}
+            </DropdownMenuItem>
           ))}
-        </select>
-      </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

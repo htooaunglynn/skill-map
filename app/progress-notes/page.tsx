@@ -142,10 +142,11 @@ export default function ProgressNotesPage() {
           </div>
         ) : (
           <section ref={listRef} className="grid gap-4 md:grid-cols-2" aria-label="Progress notes">
-            {notes.map((note) => (
+            {notes.map((note, index) => (
               <ProgressNoteCard
                 key={note.id}
                 note={note}
+                entityLabel={`N-${String(index + 1).padStart(2, "0")}`}
                 goal={goalById.get(note.goal_id)}
                 milestone={note.milestone_id ? milestoneById.get(note.milestone_id) : undefined}
                 session={note.session_id ? sessionById.get(note.session_id) : undefined}
