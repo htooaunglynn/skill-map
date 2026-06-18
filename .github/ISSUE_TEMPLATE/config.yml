@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/htooaunglynn/skill-map/security/advisories/new
+    about: Please report security vulnerabilities privately.
+  - name: Project maintainer
+    url: https://github.com/htooaunglynn
+    about: Contact the maintainer through GitHub.

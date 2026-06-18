@@ -81,3 +81,10 @@ The MVP should focus on:
 - Showing browser compatibility, file connection, autosave, and save status clearly.
 
 Do not add a backend, database, OAuth, Google Drive API, account system, real-time sync, or server storage for the MVP.
+
+## Community
+
+- Read `CONTRIBUTING.md` before opening a pull request.
+- Follow `CODE_OF_CONDUCT.md` in project spaces.
+- Report security vulnerabilities privately using `SECURITY.md`.
+- This project is licensed under the MIT License. See `LICENSE`.

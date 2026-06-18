@@ -1,6 +1,8 @@
 {
     "name": "skill-map",
     "version": "0.1.0",
+    "description": "A local-first learning planner for organizing goals, milestones, notes, sessions, and progress in a user-owned JSON file.",
+    "license": "MIT",
     "private": true,
     "scripts": {
         "dev": "next dev -p 5431",
