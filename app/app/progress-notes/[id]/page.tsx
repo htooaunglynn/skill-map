@@ -11,7 +11,6 @@ import { usePageAnimation } from "@/src/hooks/usePageAnimation";
 const chipClass =
     "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider";
 
-export const runtime = 'edge';
 
 export default function ProgressNoteDetailPage({
     params,
