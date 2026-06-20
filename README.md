@@ -22,7 +22,7 @@ No accounts. No tracking. No cloud database. Your data stays yours.
 
 ## Tech Stack
 
-- Next.js 16 (App Router) + React 19 + TypeScript
+- Next.js 16 (App Router) + React 19 + TypeScript + Dexie JS
 - Tailwind CSS + shadcn/ui (Base, Sera preset)
 - IndexedDB + File System Access API for local file persistence
 - Deployed on Vercel

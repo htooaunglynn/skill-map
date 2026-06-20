@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, FileJson, HardDrive, LockKeyhole, Target } from "lucide-react";
 import { BrandHeader } from "@/src/components/brand/SkillMapBrand";
+import { TypewriterLabel } from "@/src/components/landing/TypewriterLabel";
 import { AnimatedArticle, AnimatedPrivacyStatement, AnimatedSurface } from "@/src/components/motion/InteractiveMotion";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from "@/src/lib/site";
 
@@ -54,9 +55,7 @@ export default function LandingPage() {
         <div className="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="flex flex-col gap-6">
             <div className="border-l-[3px] pl-4" style={{ borderColor: "var(--sm-accent)" }}>
-              <p className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--sm-accent)" }}>
-                Local-first learning planner
-              </p>
+              <TypewriterLabel className="font-mono text-xs uppercase tracking-widest text-[var(--sm-accent)]" />
               <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
                 Plan self-learning in a private JSON workspace.
               </h1>
