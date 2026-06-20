@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlanner } from "@/src/context/PlannerContext";
+import { useUnsavedChangesGuard } from "@/src/hooks/useUnsavedChangesGuard";
 import { animateModalIn } from "@/src/lib/animations";
 import { getMilestonesForGoal } from "@/src/lib/goalHelpers";
 import type { PracticeSession, SessionStatus } from "@/src/types/schema";
@@ -87,6 +88,25 @@ function SessionForm({
   const [status, setStatus] = useState<SessionStatus>(() => session?.status ?? "scheduled");
   const [notes, setNotes] = useState(() => session?.notes ?? "");
   const [error, setError] = useState("");
+  const [initialValues] = useState(() => ({
+    title: session?.title ?? "",
+    goalId: session?.goal_id ?? defaultGoalId ?? goals[0]?.id ?? "",
+    milestoneId: session?.milestone_id ?? "",
+    scheduledAt: toLocalInputValue(session?.scheduled_at ?? ""),
+    durationMinutes: String(session?.duration_minutes ?? 60),
+    status: session?.status ?? "scheduled",
+    notes: session?.notes ?? "",
+  }));
+  const isDirty =
+    title !== initialValues.title ||
+    goalId !== initialValues.goalId ||
+    milestoneId !== initialValues.milestoneId ||
+    scheduledAt !== initialValues.scheduledAt ||
+    durationMinutes !== initialValues.durationMinutes ||
+    status !== initialValues.status ||
+    notes !== initialValues.notes;
+
+  useUnsavedChangesGuard(isDirty);
 
   const milestoneOptions = useMemo(
     () => (goalId ? getMilestonesForGoal(data?.milestones ?? [], goalId) : []),

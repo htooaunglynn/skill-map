@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlanner } from "@/src/context/PlannerContext";
+import { useUnsavedChangesGuard } from "@/src/hooks/useUnsavedChangesGuard";
 import { animateModalIn } from "@/src/lib/animations";
 import { getMilestonesForGoal, getSessionsForGoal } from "@/src/lib/goalHelpers";
 import type { ProgressNote } from "@/src/types/schema";
@@ -70,6 +71,21 @@ function ProgressNoteForm({
   const [content, setContent] = useState(() => note?.content ?? "");
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState("");
+  const [initialValues] = useState(() => ({
+    title: note?.title ?? "",
+    goalId: note?.goal_id ?? defaultGoalId ?? goals[0]?.id ?? "",
+    milestoneId: note?.milestone_id ?? "",
+    sessionId: note?.session_id ?? "",
+    content: note?.content ?? "",
+  }));
+  const isDirty =
+    title !== initialValues.title ||
+    goalId !== initialValues.goalId ||
+    milestoneId !== initialValues.milestoneId ||
+    sessionId !== initialValues.sessionId ||
+    content !== initialValues.content;
+
+  useUnsavedChangesGuard(isDirty);
 
   const milestoneOptions = useMemo(
     () => (goalId ? getMilestonesForGoal(data?.milestones ?? [], goalId) : []),

@@ -24,12 +24,17 @@ import type {
 import { getOrCreateDeviceIdentity } from "@/src/lib/storage/device";
 import {
   clearSavedFileHandle,
-  clearTemporaryJsonDraft,
   getSavedFileHandle,
-  getTemporaryJsonDraft,
   saveFileHandle,
-  saveTemporaryJsonDraft,
 } from "@/src/lib/storage/indexeddb";
+import {
+  getDirtySinceExport,
+  loadPlannerDataFromDb,
+  markCleanAfterExport,
+  markDirtySinceExport,
+  replacePlannerDataInDb,
+  updateSyncMetadataInDb,
+} from "@/src/lib/storage/dexie";
 import {
   createPlannerFile,
   openPlannerFile,
@@ -38,49 +43,54 @@ import {
   writePlannerFile,
   FileSystemAccessError,
 } from "@/src/lib/storage/fileSystem";
+import {
+  downloadJsonBackup,
+  importJsonFile,
+} from "@/src/lib/storage/exportImport";
+import { parseSkillMapData } from "@/src/lib/skillMapData";
 
-export type PlannerConnectionStatus =
-  | "no_file"
+export type PlannerSyncStatus =
+  | "not_connected"
   | "connected"
   | "permission_required"
-  | "fallback_mode";
+  | "sync_unsupported";
+
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type PlannerDataUpdate =
   | SkillMapData
-  | ((currentData: SkillMapData | null) => SkillMapData);
+  | ((currentData: SkillMapData) => SkillMapData);
 
 interface PlannerContextValue {
   data: SkillMapData | null;
   fileHandle: FileSystemFileHandle | null;
-  connectionStatus: PlannerConnectionStatus;
+  syncStatus: PlannerSyncStatus;
+  saveStatus: SaveStatus;
   isLoading: boolean;
   loadData: () => Promise<void>;
-  createNewPlanner: () => Promise<void>;
-  openExistingPlanner: () => Promise<void>;
+  createFileForSync: () => Promise<void>;
+  connectFileForSync: () => Promise<void>;
+  disconnectFile: () => Promise<void>;
   grantWritePermission: () => Promise<void>;
   updateData: (nextData: PlannerDataUpdate) => Promise<void>;
   saveData: () => Promise<void>;
   exportJsonBackup: () => void;
-  // Goals
+  importJsonBackup: (file: File) => Promise<void>;
   createGoal: (data: Omit<Goal, "id" | "created_at" | "updated_at">) => Promise<void>;
   updateGoal: (id: string, data: Partial<Omit<Goal, "id" | "created_at">>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
-  // Milestones
   createMilestone: (data: Omit<Milestone, "id" | "created_at" | "updated_at" | "completed_at">) => Promise<void>;
   updateMilestone: (id: string, data: Partial<Omit<Milestone, "id" | "created_at">>) => Promise<void>;
   deleteMilestone: (id: string) => Promise<void>;
   toggleMilestoneComplete: (id: string) => Promise<void>;
   reorderMilestones: (goalId: string, orderedIds: string[]) => Promise<void>;
-  // Practice Sessions
   createPracticeSession: (data: Omit<PracticeSession, "id" | "created_at" | "updated_at" | "completed_at">) => Promise<void>;
   updatePracticeSession: (id: string, data: Partial<Omit<PracticeSession, "id" | "created_at">>) => Promise<void>;
   deletePracticeSession: (id: string) => Promise<void>;
   updateSessionStatus: (id: string, status: SessionStatus) => Promise<void>;
-  // Progress Notes
   createProgressNote: (data: Omit<ProgressNote, "id" | "created_at" | "updated_at">) => Promise<void>;
   updateProgressNote: (id: string, data: Partial<Omit<ProgressNote, "id" | "created_at">>) => Promise<void>;
   deleteProgressNote: (id: string) => Promise<void>;
-  // Plans (legacy)
   createPlan: (plan: Omit<Plan, "id" | "sections" | "created_at" | "updated_at">) => Promise<void>;
   updatePlan: (id: string, plan: Partial<Plan>) => Promise<void>;
   deletePlan: (id: string) => Promise<void>;
@@ -92,46 +102,30 @@ interface PlannerContextValue {
 const PlannerContext = createContext<PlannerContextValue | null>(null);
 
 function isFileSystemAccessSupported(): boolean {
-  return "showOpenFilePicker" in window && "showSaveFilePicker" in window;
-}
-
-function isSkillMapData(value: unknown): value is SkillMapData {
-  if (typeof value !== "object" || value === null) return false;
-  const data = value as Partial<SkillMapData>;
   return (
-    typeof data.version === "string" &&
-    typeof data.app === "object" &&
-    data.app !== null &&
-    typeof data.sync === "object" &&
-    data.sync !== null &&
-    Array.isArray(data.courses) &&
-    Array.isArray(data.modules) &&
-    Array.isArray(data.topics) &&
-    Array.isArray(data.notes) &&
-    Array.isArray(data.bookmarks) &&
-    Array.isArray(data.goals)
+    typeof window !== "undefined" &&
+    "showOpenFilePicker" in window &&
+    "showSaveFilePicker" in window
   );
 }
 
 function normalizeSkillMapData(data: SkillMapData): SkillMapData {
-  return {
+  return parseSkillMapData({
     ...data,
     topics: (data.topics ?? []).map((topic) => ({
       ...topic,
       milestone_id: topic.milestone_id ?? null,
     })),
+    courses: Array.isArray(data.courses) ? data.courses : [],
+    modules: Array.isArray(data.modules) ? data.modules : [],
+    notes: Array.isArray(data.notes) ? data.notes : [],
+    bookmarks: Array.isArray(data.bookmarks) ? data.bookmarks : [],
     goals: Array.isArray(data.goals) ? data.goals : [],
     milestones: Array.isArray(data.milestones) ? data.milestones : [],
     practice_sessions: Array.isArray(data.practice_sessions) ? data.practice_sessions : [],
     progress_notes: Array.isArray(data.progress_notes) ? data.progress_notes : [],
     plans: Array.isArray(data.plans) ? data.plans : [],
-  };
-}
-
-function validateSkillMapData(data: SkillMapData): void {
-  if (!isSkillMapData(normalizeSkillMapData(data))) {
-    throw new Error("Planner data is not a valid SkillMapData object.");
-  }
+  });
 }
 
 function withUpdatedSyncMetadata(data: SkillMapData): SkillMapData {
@@ -160,16 +154,6 @@ function withUpdatedSyncMetadata(data: SkillMapData): SkillMapData {
   };
 }
 
-function downloadJsonBackup(data: SkillMapData): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "skillmap-backup.json";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function createId(prefix: string): string {
   if (typeof crypto.randomUUID === "function") {
     return `${prefix}_${crypto.randomUUID()}`;
@@ -180,60 +164,60 @@ function createId(prefix: string): string {
 export function PlannerProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<SkillMapData | null>(null);
   const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<PlannerConnectionStatus>("no_file");
-  const [isLoading, setIsLoading] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<PlannerSyncStatus>("not_connected");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [isDirtySinceExport, setIsDirtySinceExport] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const dataRef = useRef<SkillMapData | null>(null);
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { fileHandleRef.current = fileHandle; }, [fileHandle]);
 
-  const persistData = useCallback(async (nextData: SkillMapData) => {
-    const normalizedData = normalizeSkillMapData(nextData);
-    validateSkillMapData(normalizedData);
-    dataRef.current = normalizedData;
-    setData(normalizedData);
-    await saveTemporaryJsonDraft(normalizedData);
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
 
-    const currentFileHandle = fileHandleRef.current;
-    if (!currentFileHandle) return;
+    const timeoutId = window.setTimeout(() => {
+      setSaveStatus("idle");
+    }, 4000);
 
-    const hasPermission = await verifyPermission(currentFileHandle, "readwrite");
-    if (!hasPermission) {
-      setConnectionStatus("permission_required");
-      return;
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [saveStatus]);
+
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (syncStatus !== "sync_unsupported" || !isDirtySinceExport) return;
+      event.preventDefault();
+      event.returnValue = "";
     }
 
-    const dataWithSync = withUpdatedSyncMetadata(normalizedData);
-    validateSkillMapData(dataWithSync);
-    await writePlannerFile(currentFileHandle, dataWithSync);
-    await clearTemporaryJsonDraft();
-    dataRef.current = dataWithSync;
-    setData(dataWithSync);
-    setConnectionStatus("connected");
-  }, []);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [syncStatus, isDirtySinceExport]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      const plannerData = normalizeSkillMapData(await loadPlannerDataFromDb());
+      dataRef.current = plannerData;
+      setData(plannerData);
+      setIsDirtySinceExport(await getDirtySinceExport());
+
       if (!isFileSystemAccessSupported()) {
-        const draft = await getTemporaryJsonDraft();
-        const normalized = draft ? normalizeSkillMapData(draft) : draft;
-        dataRef.current = normalized;
-        setData(normalized);
         setFileHandle(null);
-        setConnectionStatus("fallback_mode");
+        setSyncStatus("sync_unsupported");
         return;
       }
 
       const savedFileHandle = await getSavedFileHandle();
       if (!savedFileHandle) {
-        const draft = await getTemporaryJsonDraft();
-        const normalized = draft ? normalizeSkillMapData(draft) : draft;
-        dataRef.current = normalized;
-        setData(normalized);
         setFileHandle(null);
-        setConnectionStatus("no_file");
+        setSyncStatus("not_connected");
         return;
       }
 
@@ -245,143 +229,206 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         if (error instanceof FileSystemAccessError) {
           await clearSavedFileHandle();
-          const draft = await getTemporaryJsonDraft();
-          const normalized = draft ? normalizeSkillMapData(draft) : draft;
-          dataRef.current = normalized;
-          setData(normalized);
           setFileHandle(null);
-          setConnectionStatus(draft ? "fallback_mode" : "no_file");
+          setSyncStatus("not_connected");
           return;
         }
-
         throw error;
       }
 
+      setFileHandle(savedFileHandle);
+      setSyncStatus(hasPermission ? "connected" : "permission_required");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadData]);
+
+  const persistData = useCallback(async (nextData: SkillMapData) => {
+    setSaveStatus("saving");
+
+    let normalizedData: SkillMapData;
+    try {
+      normalizedData = normalizeSkillMapData(nextData);
+      await replacePlannerDataInDb(normalizedData);
+    } catch (error) {
+      setSaveStatus("error");
+      throw error;
+    }
+
+    dataRef.current = normalizedData;
+    setData(normalizedData);
+    setSaveStatus("saved");
+
+    const currentFileHandle = fileHandleRef.current;
+    if (!currentFileHandle) {
+      if (syncStatus === "sync_unsupported") {
+        await markDirtySinceExport();
+        setIsDirtySinceExport(true);
+      }
+      return;
+    }
+
+    try {
+      const hasPermission = await verifyPermission(currentFileHandle, "readwrite", {
+        requestPermission: false,
+      });
       if (!hasPermission) {
-        setFileHandle(savedFileHandle);
-        setConnectionStatus("permission_required");
+        setSyncStatus("permission_required");
         return;
       }
 
-      const plannerData = await readPlannerFile(savedFileHandle);
-      const normalizedData = normalizeSkillMapData(plannerData);
-      validateSkillMapData(normalizedData);
-      dataRef.current = normalizedData;
-      setData(normalizedData);
-      setFileHandle(savedFileHandle);
-      setConnectionStatus("connected");
-    } finally {
-      setIsLoading(false);
+      const dataWithSync = withUpdatedSyncMetadata(normalizedData);
+      await writePlannerFile(currentFileHandle, dataWithSync);
+      await updateSyncMetadataInDb(dataWithSync.sync);
+      dataRef.current = dataWithSync;
+      setData(dataWithSync);
+      setSyncStatus("connected");
+      await markCleanAfterExport();
+      setIsDirtySinceExport(false);
+    } catch {
+      setSyncStatus("permission_required");
     }
-  }, []);
+  }, [syncStatus]);
 
-  const createNewPlanner = useCallback(async () => {
+  const updateData = useCallback(async (nextData: PlannerDataUpdate) => {
+    const base = dataRef.current ?? (await loadPlannerDataFromDb());
+    const resolved = typeof nextData === "function" ? nextData(base) : nextData;
+    await persistData(resolved);
+  }, [persistData]);
+
+  const createFileForSync = useCallback(async () => {
     setIsLoading(true);
     try {
       const newFileHandle = await createPlannerFile();
-      const plannerData = await readPlannerFile(newFileHandle);
-      const normalizedData = normalizeSkillMapData(plannerData);
-      validateSkillMapData(normalizedData);
       await saveFileHandle(newFileHandle);
-      await clearTemporaryJsonDraft();
-      dataRef.current = normalizedData;
-      setData(normalizedData);
       setFileHandle(newFileHandle);
-      setConnectionStatus("connected");
+
+      const currentData = dataRef.current ?? (await loadPlannerDataFromDb());
+      const dataWithSync = withUpdatedSyncMetadata(currentData);
+      await writePlannerFile(newFileHandle, dataWithSync);
+      await replacePlannerDataInDb(dataWithSync);
+      await markCleanAfterExport();
+      dataRef.current = dataWithSync;
+      setData(dataWithSync);
+      setIsDirtySinceExport(false);
+      setSyncStatus("connected");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const openExistingPlanner = useCallback(async () => {
+  const connectFileForSync = useCallback(async () => {
     setIsLoading(true);
     try {
       const selectedFileHandle = await openPlannerFile();
       const hasPermission = await verifyPermission(selectedFileHandle, "readwrite");
       if (!hasPermission) {
         setFileHandle(selectedFileHandle);
-        setConnectionStatus("permission_required");
+        setSyncStatus("permission_required");
         return;
       }
-      const plannerData = await readPlannerFile(selectedFileHandle);
-      const normalizedData = normalizeSkillMapData(plannerData);
-      validateSkillMapData(normalizedData);
+
+      const fileData = normalizeSkillMapData(await readPlannerFile(selectedFileHandle));
+      await replacePlannerDataInDb(fileData);
+      await markCleanAfterExport();
       await saveFileHandle(selectedFileHandle);
-      await clearTemporaryJsonDraft();
-      dataRef.current = normalizedData;
-      setData(normalizedData);
+      dataRef.current = fileData;
+      setData(fileData);
       setFileHandle(selectedFileHandle);
-      setConnectionStatus("connected");
+      setIsDirtySinceExport(false);
+      setSyncStatus("connected");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const disconnectFile = useCallback(async () => {
+    await clearSavedFileHandle();
+    setFileHandle(null);
+    setSyncStatus(isFileSystemAccessSupported() ? "not_connected" : "sync_unsupported");
+  }, []);
+
   const grantWritePermission = useCallback(async () => {
     if (!fileHandle) {
-      setConnectionStatus("no_file");
+      setSyncStatus(isFileSystemAccessSupported() ? "not_connected" : "sync_unsupported");
       return;
     }
+
     setIsLoading(true);
     try {
       const hasPermission = await verifyPermission(fileHandle, "readwrite");
       if (!hasPermission) {
-        setConnectionStatus("permission_required");
+        setSyncStatus("permission_required");
         return;
       }
-      const plannerData = await readPlannerFile(fileHandle);
-      const normalizedData = normalizeSkillMapData(plannerData);
-      validateSkillMapData(normalizedData);
+
       await saveFileHandle(fileHandle);
-      dataRef.current = normalizedData;
-      setData(normalizedData);
-      setConnectionStatus("connected");
+      const currentData = dataRef.current ?? (await loadPlannerDataFromDb());
+      const dataWithSync = withUpdatedSyncMetadata(currentData);
+      await writePlannerFile(fileHandle, dataWithSync);
+      await replacePlannerDataInDb(dataWithSync);
+      await markCleanAfterExport();
+      dataRef.current = dataWithSync;
+      setData(dataWithSync);
+      setIsDirtySinceExport(false);
+      setSyncStatus("connected");
     } finally {
       setIsLoading(false);
     }
   }, [fileHandle]);
 
-  const updateData = useCallback(async (nextData: PlannerDataUpdate) => {
-    const resolved = typeof nextData === "function" ? nextData(dataRef.current) : nextData;
-    await persistData(resolved);
+  const saveData = useCallback(async () => {
+    if (!dataRef.current) return;
+    await persistData(dataRef.current);
   }, [persistData]);
 
-  // ── Goals ──────────────────────────────────────────────────────────────────
+  const exportJsonBackup = useCallback(() => {
+    if (!dataRef.current) return;
+    downloadJsonBackup(dataRef.current);
+    void markCleanAfterExport();
+    setIsDirtySinceExport(false);
+  }, []);
+
+  const importJsonBackup = useCallback(async (file: File) => {
+    const imported = normalizeSkillMapData(await importJsonFile(file));
+    await persistData(imported);
+    await markCleanAfterExport();
+    setIsDirtySinceExport(false);
+  }, [persistData]);
 
   const createGoal = useCallback(async (goalData: Omit<Goal, "id" | "created_at" | "updated_at">) => {
     const now = new Date().toISOString();
     const newGoal: Goal = { ...goalData, id: createId("goal"), created_at: now, updated_at: now };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, goals: [...cur.goals, newGoal] };
-    });
+    await updateData((cur) => ({ ...cur, goals: [...cur.goals, newGoal] }));
   }, [updateData]);
 
   const updateGoal = useCallback(async (id: string, goalData: Partial<Omit<Goal, "id" | "created_at">>) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        goals: cur.goals.map((g) => g.id === id ? { ...g, ...goalData, id, updated_at: now } : g),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      goals: cur.goals.map((g) => g.id === id ? { ...g, ...goalData, id, updated_at: now } : g),
+    }));
   }, [updateData]);
 
   const deleteGoal = useCallback(async (id: string) => {
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        goals: cur.goals.filter((g) => g.id !== id),
-        milestones: cur.milestones.filter((m) => m.goal_id !== id),
-        practice_sessions: cur.practice_sessions.filter((s) => s.goal_id !== id),
-        progress_notes: cur.progress_notes.filter((n) => n.goal_id !== id),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      goals: cur.goals.filter((g) => g.id !== id),
+      milestones: cur.milestones.filter((m) => m.goal_id !== id),
+      practice_sessions: cur.practice_sessions.filter((s) => s.goal_id !== id),
+      progress_notes: cur.progress_notes.filter((n) => n.goal_id !== id),
+    }));
   }, [updateData]);
-
-  // ── Milestones ─────────────────────────────────────────────────────────────
 
   const createMilestone = useCallback(async (milestoneData: Omit<Milestone, "id" | "created_at" | "updated_at" | "completed_at">) => {
     const now = new Date().toISOString();
@@ -392,80 +439,63 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       created_at: now,
       updated_at: now,
     };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, milestones: [...cur.milestones, newMilestone] };
-    });
+    await updateData((cur) => ({ ...cur, milestones: [...cur.milestones, newMilestone] }));
   }, [updateData]);
 
   const updateMilestone = useCallback(async (id: string, milestoneData: Partial<Omit<Milestone, "id" | "created_at">>) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        milestones: cur.milestones.map((m) =>
-          m.id === id ? { ...m, ...milestoneData, id, updated_at: now } : m
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      milestones: cur.milestones.map((m) =>
+        m.id === id ? { ...m, ...milestoneData, id, updated_at: now } : m
+      ),
+    }));
   }, [updateData]);
 
   const deleteMilestone = useCallback(async (id: string) => {
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        milestones: cur.milestones.filter((m) => m.id !== id),
-        practice_sessions: cur.practice_sessions.map((s) =>
-          s.milestone_id === id ? { ...s, milestone_id: null } : s
-        ),
-        progress_notes: cur.progress_notes.map((n) =>
-          n.milestone_id === id ? { ...n, milestone_id: null } : n
-        ),
-        topics: cur.topics.map((t) =>
-          t.milestone_id === id ? { ...t, milestone_id: null } : t
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      milestones: cur.milestones.filter((m) => m.id !== id),
+      practice_sessions: cur.practice_sessions.map((s) =>
+        s.milestone_id === id ? { ...s, milestone_id: null } : s
+      ),
+      progress_notes: cur.progress_notes.map((n) =>
+        n.milestone_id === id ? { ...n, milestone_id: null } : n
+      ),
+      topics: cur.topics.map((t) =>
+        t.milestone_id === id ? { ...t, milestone_id: null } : t
+      ),
+    }));
   }, [updateData]);
 
   const toggleMilestoneComplete = useCallback(async (id: string) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        milestones: cur.milestones.map((m) => {
-          if (m.id !== id) return m;
-          const completing = m.status !== "completed";
-          return {
-            ...m,
-            status: completing ? "completed" : "in_progress",
-            completed_at: completing ? now : null,
-            updated_at: now,
-          };
-        }),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      milestones: cur.milestones.map((m) => {
+        if (m.id !== id) return m;
+        const completing = m.status !== "completed";
+        return {
+          ...m,
+          status: completing ? "completed" : "in_progress",
+          completed_at: completing ? now : null,
+          updated_at: now,
+        };
+      }),
+    }));
   }, [updateData]);
 
   const reorderMilestones = useCallback(async (goalId: string, orderedIds: string[]) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        milestones: cur.milestones.map((m) => {
-          if (m.goal_id !== goalId) return m;
-          const idx = orderedIds.indexOf(m.id);
-          return idx === -1 ? m : { ...m, order: idx + 1, updated_at: now };
-        }),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      milestones: cur.milestones.map((m) => {
+        if (m.goal_id !== goalId) return m;
+        const idx = orderedIds.indexOf(m.id);
+        return idx === -1 ? m : { ...m, order: idx + 1, updated_at: now };
+      }),
+    }));
   }, [updateData]);
-
-  // ── Practice Sessions ──────────────────────────────────────────────────────
 
   const createPracticeSession = useCallback(async (sessionData: Omit<PracticeSession, "id" | "created_at" | "updated_at" | "completed_at">) => {
     const now = new Date().toISOString();
@@ -476,58 +506,44 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       created_at: now,
       updated_at: now,
     };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, practice_sessions: [...cur.practice_sessions, newSession] };
-    });
+    await updateData((cur) => ({ ...cur, practice_sessions: [...cur.practice_sessions, newSession] }));
   }, [updateData]);
 
   const updatePracticeSession = useCallback(async (id: string, sessionData: Partial<Omit<PracticeSession, "id" | "created_at">>) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        practice_sessions: cur.practice_sessions.map((s) =>
-          s.id === id ? { ...s, ...sessionData, id, updated_at: now } : s
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      practice_sessions: cur.practice_sessions.map((s) =>
+        s.id === id ? { ...s, ...sessionData, id, updated_at: now } : s
+      ),
+    }));
   }, [updateData]);
 
   const deletePracticeSession = useCallback(async (id: string) => {
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        practice_sessions: cur.practice_sessions.filter((s) => s.id !== id),
-        progress_notes: cur.progress_notes.map((n) =>
-          n.session_id === id ? { ...n, session_id: null } : n
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      practice_sessions: cur.practice_sessions.filter((s) => s.id !== id),
+      progress_notes: cur.progress_notes.map((n) =>
+        n.session_id === id ? { ...n, session_id: null } : n
+      ),
+    }));
   }, [updateData]);
 
   const updateSessionStatus = useCallback(async (id: string, status: SessionStatus) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        practice_sessions: cur.practice_sessions.map((s) => {
-          if (s.id !== id) return s;
-          return {
-            ...s,
-            status,
-            completed_at: status === "completed" ? now : null,
-            updated_at: now,
-          };
-        }),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      practice_sessions: cur.practice_sessions.map((s) => {
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          status,
+          completed_at: status === "completed" ? now : null,
+          updated_at: now,
+        };
+      }),
+    }));
   }, [updateData]);
-
-  // ── Progress Notes ─────────────────────────────────────────────────────────
 
   const createProgressNote = useCallback(async (noteData: Omit<ProgressNote, "id" | "created_at" | "updated_at">) => {
     const now = new Date().toISOString();
@@ -537,59 +553,45 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       created_at: now,
       updated_at: now,
     };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, progress_notes: [...cur.progress_notes, newNote] };
-    });
+    await updateData((cur) => ({ ...cur, progress_notes: [...cur.progress_notes, newNote] }));
   }, [updateData]);
 
   const updateProgressNote = useCallback(async (id: string, noteData: Partial<Omit<ProgressNote, "id" | "created_at">>) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        progress_notes: cur.progress_notes.map((n) =>
-          n.id === id ? { ...n, ...noteData, id, updated_at: now } : n
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      progress_notes: cur.progress_notes.map((n) =>
+        n.id === id ? { ...n, ...noteData, id, updated_at: now } : n
+      ),
+    }));
   }, [updateData]);
 
   const deleteProgressNote = useCallback(async (id: string) => {
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, progress_notes: cur.progress_notes.filter((n) => n.id !== id) };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      progress_notes: cur.progress_notes.filter((n) => n.id !== id),
+    }));
   }, [updateData]);
-
-  // ── Plans (legacy) ─────────────────────────────────────────────────────────
 
   const createPlan = useCallback(async (plan: Omit<Plan, "id" | "sections" | "created_at" | "updated_at">) => {
     const now = new Date().toISOString();
     const newPlan: Plan = { ...plan, id: createId("plan"), sections: [], created_at: now, updated_at: now };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, plans: [...cur.plans, newPlan] };
-    });
+    await updateData((cur) => ({ ...cur, plans: [...cur.plans, newPlan] }));
   }, [updateData]);
 
   const updatePlan = useCallback(async (id: string, plan: Partial<Plan>) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        plans: cur.plans.map((p) => p.id === id ? { ...p, ...plan, id, updated_at: now } : p),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      plans: cur.plans.map((p) => p.id === id ? { ...p, ...plan, id, updated_at: now } : p),
+    }));
   }, [updateData]);
 
   const deletePlan = useCallback(async (id: string) => {
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return { ...cur, plans: cur.plans.filter((p) => p.id !== id) };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      plans: cur.plans.filter((p) => p.id !== id),
+    }));
   }, [updateData]);
 
   const createPlanSection = useCallback(async (
@@ -598,15 +600,12 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   ) => {
     const now = new Date().toISOString();
     const newSection: PlanSection = { ...section, id: createId("plan_section"), plan_id: planId, created_at: now, updated_at: now };
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        plans: cur.plans.map((p) =>
-          p.id === planId ? { ...p, sections: [...p.sections, newSection], updated_at: now } : p
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      plans: cur.plans.map((p) =>
+        p.id === planId ? { ...p, sections: [...p.sections, newSection], updated_at: now } : p
+      ),
+    }));
   }, [updateData]);
 
   const updatePlanSection = useCallback(async (
@@ -615,83 +614,50 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     section: Partial<PlanSection>
   ) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        plans: cur.plans.map((p) =>
-          p.id === planId
-            ? {
-                ...p,
-                sections: p.sections.map((s) =>
-                  s.id === sectionId ? { ...s, ...section, id: sectionId, plan_id: planId, updated_at: now } : s
-                ),
-                updated_at: now,
-              }
-            : p
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      plans: cur.plans.map((p) =>
+        p.id === planId
+          ? {
+              ...p,
+              sections: p.sections.map((s) =>
+                s.id === sectionId ? { ...s, ...section, id: sectionId, plan_id: planId, updated_at: now } : s
+              ),
+              updated_at: now,
+            }
+          : p
+      ),
+    }));
   }, [updateData]);
 
   const deletePlanSection = useCallback(async (planId: string, sectionId: string) => {
     const now = new Date().toISOString();
-    await updateData((cur) => {
-      if (!cur) throw new Error("Open or create a planner file first.");
-      return {
-        ...cur,
-        plans: cur.plans.map((p) =>
-          p.id === planId
-            ? { ...p, sections: p.sections.filter((s) => s.id !== sectionId), updated_at: now }
-            : p
-        ),
-      };
-    });
+    await updateData((cur) => ({
+      ...cur,
+      plans: cur.plans.map((p) =>
+        p.id === planId
+          ? { ...p, sections: p.sections.filter((s) => s.id !== sectionId), updated_at: now }
+          : p
+      ),
+    }));
   }, [updateData]);
-
-  // ── Save / Export ──────────────────────────────────────────────────────────
-
-  const saveData = useCallback(async () => {
-    if (!data) return;
-    validateSkillMapData(data);
-    if (!fileHandle) {
-      await saveTemporaryJsonDraft(data);
-      setConnectionStatus("fallback_mode");
-      return;
-    }
-    const hasPermission = await verifyPermission(fileHandle, "readwrite");
-    if (!hasPermission) {
-      setConnectionStatus("permission_required");
-      return;
-    }
-    const dataWithSync = withUpdatedSyncMetadata(data);
-    validateSkillMapData(dataWithSync);
-    await writePlannerFile(fileHandle, dataWithSync);
-    await clearTemporaryJsonDraft();
-    dataRef.current = dataWithSync;
-    setData(dataWithSync);
-    setConnectionStatus("connected");
-  }, [data, fileHandle]);
-
-  const exportJsonBackup = useCallback(() => {
-    if (!data) return;
-    validateSkillMapData(data);
-    downloadJsonBackup(data);
-  }, [data]);
 
   const value = useMemo<PlannerContextValue>(
     () => ({
       data,
       fileHandle,
-      connectionStatus,
+      syncStatus,
+      saveStatus,
       isLoading,
       loadData,
-      createNewPlanner,
-      openExistingPlanner,
+      createFileForSync,
+      connectFileForSync,
+      disconnectFile,
       grantWritePermission,
       updateData,
       saveData,
       exportJsonBackup,
+      importJsonBackup,
       createGoal,
       updateGoal,
       deleteGoal,
@@ -715,9 +681,9 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       deletePlanSection,
     }),
     [
-      data, fileHandle, connectionStatus, isLoading,
-      loadData, createNewPlanner, openExistingPlanner, grantWritePermission,
-      updateData, saveData, exportJsonBackup,
+      data, fileHandle, syncStatus, saveStatus, isLoading,
+      loadData, createFileForSync, connectFileForSync, disconnectFile, grantWritePermission,
+      updateData, saveData, exportJsonBackup, importJsonBackup,
       createGoal, updateGoal, deleteGoal,
       createMilestone, updateMilestone, deleteMilestone, toggleMilestoneComplete, reorderMilestones,
       createPracticeSession, updatePracticeSession, deletePracticeSession, updateSessionStatus,

@@ -1,12 +1,9 @@
 "use client";
 
-import type { SkillMapData } from "@/src/types/schema";
-
 const DATABASE_NAME = "skillmap";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "client-storage";
 const FILE_HANDLE_KEY = "file_handle";
-const DRAFT_KEY = "temporary_json_draft";
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -90,22 +87,4 @@ export async function getSavedFileHandle(): Promise<FileSystemFileHandle | null>
 
 export async function clearSavedFileHandle(): Promise<void> {
   await withStore("readwrite", (store) => store.delete(FILE_HANDLE_KEY));
-}
-
-export async function saveTemporaryJsonDraft(
-  draft: SkillMapData,
-): Promise<void> {
-  await withStore("readwrite", (store) => store.put(draft, DRAFT_KEY));
-}
-
-export async function getTemporaryJsonDraft(): Promise<SkillMapData | null> {
-  const draft = await withStore<unknown>("readonly", (store) =>
-    store.get(DRAFT_KEY),
-  );
-
-  return draft ? (draft as SkillMapData) : null;
-}
-
-export async function clearTemporaryJsonDraft(): Promise<void> {
-  await withStore("readwrite", (store) => store.delete(DRAFT_KEY));
 }

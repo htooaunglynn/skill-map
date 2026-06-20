@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AppFooter } from "@/src/components/AppFooter";
+import { SaveStatusIndicator } from "@/src/components/SaveStatusIndicator";
 import { PlannerProvider } from "@/src/context/PlannerContext";
 import {
   SITE_DESCRIPTION,
@@ -80,6 +81,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <PlannerProvider>
           {children}
+          <SaveStatusIndicator />
           <AppFooter />
         </PlannerProvider>
         <Analytics />

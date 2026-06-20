@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, FilePlus2, FolderOpen, KeyRound } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Download,
+    FilePlus2,
+    FolderOpen,
+    KeyRound,
+    Unplug,
+    Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -14,7 +23,7 @@ import { usePlanner } from "@/src/context/PlannerContext";
 
 function formatSavedTime(value: string | undefined): string {
     if (!value) {
-        return "Not saved yet";
+        return "not synced yet";
     }
 
     return new Intl.DateTimeFormat(undefined, {
@@ -26,14 +35,17 @@ function formatSavedTime(value: string | undefined): string {
 export function FileConnectionStatus() {
     const {
         data,
-        connectionStatus,
+        syncStatus,
         isLoading,
-        createNewPlanner,
-        openExistingPlanner,
+        createFileForSync,
+        connectFileForSync,
+        disconnectFile,
         grantWritePermission,
         exportJsonBackup,
+        importJsonBackup,
     } = usePlanner();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     async function runAction(action: () => Promise<void>): Promise<void> {
         setErrorMessage(null);
@@ -47,33 +59,87 @@ export function FileConnectionStatus() {
         }
     }
 
-    if (connectionStatus === "connected") {
+    async function importSelectedFile(file: File | undefined): Promise<void> {
+        if (!file) return;
+        await runAction(() => importJsonBackup(file));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    }
+
+    const backupControls = (
+        <>
+            <Button
+                type="button"
+                variant="outline"
+                onClick={exportJsonBackup}
+                disabled={!data || isLoading}
+            >
+                <Download aria-hidden="true" />
+                Export JSON
+            </Button>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(event) => {
+                    void importSelectedFile(event.target.files?.[0]);
+                }}
+            />
+            <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+            >
+                <Upload aria-hidden="true" />
+                Import JSON
+            </Button>
+        </>
+    );
+
+    if (syncStatus === "connected") {
         return (
             <Card className="border-border bg-card">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <CheckCircle2 className="size-4 text-primary" aria-hidden="true" />
-                        File Connected
+                        File Sync Connected
                     </CardTitle>
                     <CardDescription>
-                        Last saved {formatSavedTime(data?.sync.last_saved_at)}
+                        Browser data is saved. Last synced to file {formatSavedTime(data?.sync.last_saved_at)}.
                     </CardDescription>
                 </CardHeader>
+                <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    {backupControls}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void runAction(disconnectFile)}
+                        disabled={isLoading}
+                    >
+                        <Unplug aria-hidden="true" />
+                        Disconnect File
+                    </Button>
+                    {errorMessage ? (
+                        <p className="text-sm text-destructive">{errorMessage}</p>
+                    ) : null}
+                </CardContent>
             </Card>
         );
     }
 
-    if (connectionStatus === "permission_required") {
+    if (syncStatus === "permission_required") {
         return (
             <Card className="border-border bg-card">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <KeyRound className="size-4" aria-hidden="true" />
-                        Permission Required
+                        File Sync Permission Required
                     </CardTitle>
                     <CardDescription>
-                        Grant write access to keep saving changes to your planner file.
-                        (use Chrome)
+                        Browser data is still saved. Grant access to resume syncing a connected planner file.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -85,6 +151,7 @@ export function FileConnectionStatus() {
                         <KeyRound aria-hidden="true" />
                         Grant Write Permission
                     </Button>
+                    {backupControls}
                     {errorMessage ? (
                         <p className="text-sm text-destructive">{errorMessage}</p>
                     ) : null}
@@ -93,28 +160,20 @@ export function FileConnectionStatus() {
         );
     }
 
-    if (connectionStatus === "fallback_mode") {
+    if (syncStatus === "sync_unsupported") {
         return (
             <Card className="border-border bg-secondary text-secondary-foreground">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <AlertTriangle className="size-4" aria-hidden="true" />
-                        Direct Saving Unavailable
+                        File Sync Unavailable
                     </CardTitle>
                     <CardDescription>
-                        This browser does not support direct local file saving. Export a
-                        JSON backup to keep your planner data.
+                        This browser cannot sync to a local file automatically, but your planner is saved in this browser. Export after edits to keep a portable backup and clear the close-tab warning until your next change.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Button
-                        type="button"
-                        onClick={exportJsonBackup}
-                        disabled={!data || isLoading}
-                    >
-                        <Download aria-hidden="true" />
-                        Export JSON Backup
-                    </Button>
+                    {backupControls}
                     {errorMessage ? (
                         <p className="text-sm text-destructive">{errorMessage}</p>
                     ) : null}
@@ -126,29 +185,30 @@ export function FileConnectionStatus() {
     return (
         <Card className="border-border bg-card">
             <CardHeader>
-                <CardTitle>Connect Planner File</CardTitle>
+                <CardTitle>Optional File Sync</CardTitle>
                 <CardDescription>
-                    Create a new local JSON planner file or open an existing one.
+                    Your planner is saved in this browser. Connect a JSON file only if you want a local sync copy.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
                     type="button"
-                    onClick={() => void runAction(createNewPlanner)}
+                    onClick={() => void runAction(createFileForSync)}
                     disabled={isLoading}
                 >
                     <FilePlus2 aria-hidden="true" />
-                    Create New Planner
+                    Create Sync File
                 </Button>
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={() => void runAction(openExistingPlanner)}
+                    onClick={() => void runAction(connectFileForSync)}
                     disabled={isLoading}
                 >
                     <FolderOpen aria-hidden="true" />
-                    Open Existing Planner
+                    Connect Existing File
                 </Button>
+                {backupControls}
                 {errorMessage ? (
                     <p className="text-sm text-destructive">{errorMessage}</p>
                 ) : null}

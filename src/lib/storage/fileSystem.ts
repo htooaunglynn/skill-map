@@ -1,6 +1,8 @@
 "use client";
 
+import { ZodError } from "zod";
 import type { SkillMapData } from "@/src/types/schema";
+import { createDefaultSkillMapData, parseSkillMapData } from "@/src/lib/skillMapData";
 
 export type FileSystemPermissionMode = "read" | "readwrite";
 
@@ -56,35 +58,6 @@ export class FileSystemAccessError extends Error {
     super(message);
     this.name = "FileSystemAccessError";
   }
-}
-
-function createDefaultSkillMapData(): SkillMapData {
-  const now = new Date().toISOString();
-
-  return {
-    version: "1",
-    app: {
-      name: "SkillMap",
-      version: "0.1.0",
-    },
-    sync: {
-      last_saved_at: now,
-      last_opened_at: now,
-      last_device_id: "",
-      last_device_name: "",
-      devices: [],
-    },
-    courses: [],
-    modules: [],
-    milestones: [],
-    topics: [],
-    notes: [],
-    bookmarks: [],
-    goals: [],
-    practice_sessions: [],
-    progress_notes: [],
-    plans: [],
-  };
 }
 
 function ensureSaveFilePickerSupport(): void {
@@ -213,11 +186,19 @@ export async function readPlannerFile(
     const file = await fileHandle.getFile();
     const text = await file.text();
 
-    return JSON.parse(text) as SkillMapData;
+    return parseSkillMapData(JSON.parse(text));
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new FileSystemAccessError(
         "The selected planner file does not contain valid JSON.",
+        "invalid-json",
+        error,
+      );
+    }
+
+    if (error instanceof ZodError) {
+      throw new FileSystemAccessError(
+        "The selected planner file is not a valid SkillMap planner file.",
         "invalid-json",
         error,
       );

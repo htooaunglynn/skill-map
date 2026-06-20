@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlanner } from "@/src/context/PlannerContext";
+import { useUnsavedChangesGuard } from "@/src/hooks/useUnsavedChangesGuard";
 import { animateModalIn } from "@/src/lib/animations";
 import type { Milestone, MilestoneStatus } from "@/src/types/schema";
 
@@ -78,6 +79,21 @@ function MilestoneForm({
   const [error, setError] = useState("");
   const goals = data?.goals ?? [];
   const canChooseGoal = !goalId && !milestone;
+  const [initialValues] = useState(() => ({
+    title: milestone?.title ?? "",
+    description: milestone?.description ?? "",
+    status: milestone?.status ?? "not_started",
+    dueDate: milestone?.due_date ?? "",
+    selectedGoalId: goalId ?? milestone?.goal_id ?? "",
+  }));
+  const isDirty =
+    title !== initialValues.title ||
+    description !== initialValues.description ||
+    status !== initialValues.status ||
+    dueDate !== initialValues.dueDate ||
+    selectedGoalId !== initialValues.selectedGoalId;
+
+  useUnsavedChangesGuard(isDirty);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { animateModalIn } from "@/src/lib/animations";
 import type { Goal, GoalStatus } from "@/src/types/schema";
 import { usePlanner } from "@/src/context/PlannerContext";
+import { useUnsavedChangesGuard } from "@/src/hooks/useUnsavedChangesGuard";
 
 const GOAL_STATUSES: GoalStatus[] = ["not_started", "in_progress", "completed", "archived"];
 
@@ -56,6 +57,19 @@ function GoalForm({
   const [status, setStatus] = useState<GoalStatus>(() => goal?.status ?? "not_started");
   const [targetDate, setTargetDate] = useState(() => goal?.target_date ?? "");
   const [error, setError] = useState("");
+  const [initialValues] = useState(() => ({
+    title: goal?.title ?? "",
+    description: goal?.description ?? "",
+    status: goal?.status ?? "not_started",
+    targetDate: goal?.target_date ?? "",
+  }));
+  const isDirty =
+    title !== initialValues.title ||
+    description !== initialValues.description ||
+    status !== initialValues.status ||
+    targetDate !== initialValues.targetDate;
+
+  useUnsavedChangesGuard(isDirty);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
